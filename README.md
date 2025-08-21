@@ -25,3 +25,12 @@ password: $YOUR_API_KEY
 
 docker pull nvcr.io/nim/nvidia/corrdiff:1.0.0
 ```
+
+## Deploy Corrdiff (Singularity)
+
+```bash
+export SINGULARITY_DOCKER_USERNAME='$oauthtoken'
+export SINGULARITY_DOCKER_PASSWORD='YOUR_API_KEY'
+
+singularity pull docker://nvcr.io/nim/nvidia/corrdiff:1.0.0
+```
