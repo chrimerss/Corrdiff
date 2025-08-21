@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Create the directory
+sudo mkdir -p /etc/docker
+
+# Create the configuration file with the setting
+echo '{ "iptables": false }' | sudo tee /etc/docker/daemon.json
+
 # --- UPDATE AND INSTALL PREREQUISITES ---
 echo "Updating package list and installing prerequisites..."
 sudo apt-get update
