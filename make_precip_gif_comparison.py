@@ -220,6 +220,9 @@ def load_gefs_precipitation(forecast_hour, base_time, gefs_source, target_lat_gr
         if gefs_precip_regridded.max() < 0.1:  # Likely in m or m/s
             gefs_precip_regridded = gefs_precip_regridded * 1000  # Convert to mm
         
+        # Mask precipitation less than 0.1 mm
+        gefs_precip_regridded = np.ma.masked_where(gefs_precip_regridded < 0.1, gefs_precip_regridded)
+        
         print(f"    GEFS precip range: {gefs_precip_regridded.min():.3f} to {gefs_precip_regridded.max():.3f} mm")
         
         return gefs_precip_regridded
@@ -236,6 +239,10 @@ def create_comparison_frame(file_path, forecast_hour, lat_grid, lon_grid, ncar_c
     try:
         corrdiff_data = np.load(file_path).squeeze()
         corrdiff_precip = corrdiff_data[3, :, :]  # Extract precipitation
+        
+        # Mask precipitation less than 0.1 mm
+        corrdiff_precip = np.ma.masked_where(corrdiff_precip < 0.1, corrdiff_precip)
+        
     except Exception as e:
         print(f"Error loading CorrDiff data from {file_path}: {e}")
         return None
@@ -260,22 +267,20 @@ def create_comparison_frame(file_path, forecast_hour, lat_grid, lon_grid, ncar_c
     ax1 = fig.add_subplot(211, projection=proj)
     ax1.set_extent([lon_min, lon_max, lat_min, lat_max], crs=proj)
     
-    # Add map features
-    ax1.add_feature(cfeature.COASTLINE, linewidth=0.8, color='black')
-    ax1.add_feature(cfeature.BORDERS, linewidth=0.6, color='black')
-    ax1.add_feature(cfeature.STATES, linewidth=0.4, color='white', alpha=0.7)
-    ax1.add_feature(cfeature.LAKES, color='lightblue', alpha=0.3)
+    # Plot CorrDiff precipitation using pcolormesh
+    im1 = ax1.pcolormesh(lon_display, lat_grid, corrdiff_precip, 
+                         cmap=ncar_cmap, 
+                         vmin=0, 
+                         vmax=max_precip,
+                         transform=proj,
+                         shading='auto')
     
-    # Plot CorrDiff precipitation
-    im1 = ax1.imshow(corrdiff_precip, 
-                     extent=[lon_display.min(), lon_display.max(), 
-                            lat_grid.min(), lat_grid.max()],
-                     origin='upper', 
-                     cmap=ncar_cmap, 
-                     vmin=0, 
-                     vmax=max_precip,
-                     transform=proj,
-                     alpha=0.8)
+    # Add map features AFTER precipitation plot for visibility
+    ax1.add_feature(cfeature.COASTLINE, linewidth=1.0, color='black', zorder=10)
+    ax1.add_feature(cfeature.BORDERS, linewidth=0.8, color='black', zorder=10)
+    ax1.add_feature(cfeature.STATES, linewidth=0.6, edgecolor='black', facecolor='none', alpha=1.0, zorder=10)
+    # ax1.add_feature(cfeature.LAKES, color='lightblue', alpha=0.3, zorder=5)
+    # ax1.add_feature(cfeature.RIVERS, color='lightblue', alpha=0.3, zorder=5)
     
     # Add gridlines
     gl1 = ax1.gridlines(draw_labels=True, alpha=0.5, linestyle='--')
@@ -286,48 +291,46 @@ def create_comparison_frame(file_path, forecast_hour, lat_grid, lon_grid, ncar_c
     
     ax1.set_title(f'CorrDiff Downscaled - F{forecast_hour:02d}h', fontsize=14, fontweight='bold')
     
-    # Add statistics
+    # Add statistics - positioned inside the map area
     stats_text1 = f'Max: {corrdiff_precip.max():.1f} mm\nMean: {corrdiff_precip.mean():.1f} mm'
-    ax1.text(0.02, 0.98, stats_text1, transform=ax1.transAxes, 
-             bbox=dict(boxstyle='round', facecolor='white', alpha=0.9),
-             verticalalignment='top', fontsize=10, fontweight='bold')
+    ax1.text(0.02, 0.12, stats_text1, transform=ax1.transAxes, 
+             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9, edgecolor='black', linewidth=0.5),
+             verticalalignment='top', horizontalalignment='left', 
+             fontsize=10, fontweight='bold')
     
     # Subplot 2: GEFS
     ax2 = fig.add_subplot(212, projection=proj)
     ax2.set_extent([lon_min, lon_max, lat_min, lat_max], crs=proj)
     
-    # Add map features
-    ax2.add_feature(cfeature.COASTLINE, linewidth=0.8, color='black')
-    ax2.add_feature(cfeature.BORDERS, linewidth=0.6, color='black')
-    ax2.add_feature(cfeature.STATES, linewidth=0.4, color='white', alpha=0.7)
-    ax2.add_feature(cfeature.LAKES, color='lightblue', alpha=0.3)
-    
     if gefs_precip is not None:
-        # Plot GEFS precipitation
-        im2 = ax2.imshow(gefs_precip, 
-                         extent=[lon_display.min(), lon_display.max(), 
-                                lat_grid.min(), lat_grid.max()],
-                         origin='upper', 
-                         cmap=ncar_cmap, 
-                         vmin=0, 
-                         vmax=max_precip,
-                         transform=proj,
-                         alpha=0.8)
+        # Plot GEFS precipitation using pcolormesh
+        im2 = ax2.pcolormesh(lon_display, lat_grid, gefs_precip, 
+                             cmap=ncar_cmap, 
+                             vmin=0, 
+                             vmax=max_precip,
+                             transform=proj,
+                             shading='auto')
         
         stats_text2 = f'Max: {gefs_precip.max():.1f} mm\nMean: {gefs_precip.mean():.1f} mm'
     else:
         # Create empty plot if GEFS data not available
-        im2 = ax2.imshow(np.zeros_like(corrdiff_precip), 
-                         extent=[lon_display.min(), lon_display.max(), 
-                                lat_grid.min(), lat_grid.max()],
-                         origin='upper', 
-                         cmap=ncar_cmap, 
-                         vmin=0, 
-                         vmax=max_precip,
-                         transform=proj,
-                         alpha=0.8)
+        im2 = ax2.pcolormesh(lon_display, lat_grid, np.zeros_like(corrdiff_precip), 
+                             cmap=ncar_cmap, 
+                             vmin=0, 
+                             vmax=max_precip,
+                             transform=proj,
+                             shading='auto')
         
         stats_text2 = 'GEFS data\nnot available'
+    
+    # Add map features AFTER precipitation plot for visibility
+    ax2.add_feature(cfeature.COASTLINE, linewidth=1.0, color='black', zorder=10)
+    ax2.add_feature(cfeature.BORDERS, linewidth=0.8, color='black', zorder=10)
+    # Use high-resolution state boundaries - try different approaches
+
+    ax2.add_feature(cfeature.STATES, linewidth=0.6, edgecolor='black', facecolor='none', alpha=1.0, zorder=10)
+    # ax2.add_feature(cfeature.LAKES, color='lightblue', alpha=0.3, zorder=5)
+    # ax2.add_feature(cfeature.RIVERS, color='lightblue', alpha=0.3, zorder=5)
     
     # Add gridlines
     gl2 = ax2.gridlines(draw_labels=True, alpha=0.5, linestyle='--')
@@ -338,20 +341,20 @@ def create_comparison_frame(file_path, forecast_hour, lat_grid, lon_grid, ncar_c
     
     ax2.set_title(f'GEFS Original - F{forecast_hour:02d}h', fontsize=14, fontweight='bold')
     
-    # Add statistics
-    ax2.text(0.02, 0.98, stats_text2, transform=ax2.transAxes, 
-             bbox=dict(boxstyle='round', facecolor='white', alpha=0.9),
-             verticalalignment='top', fontsize=10, fontweight='bold')
+    # Add statistics - positioned inside the map area
+    ax2.text(0.02, 0.12, stats_text2, transform=ax2.transAxes, 
+             bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9, edgecolor='black', linewidth=0.5),
+             verticalalignment='top', horizontalalignment='left', 
+             fontsize=10, fontweight='bold')
     
-    # Add shared colorbar
-    # Create a separate axes for the colorbar on the right side
-    cbar_ax = fig.add_axes([0.9, 0.15, 0.02, 0.7])  # [left, bottom, width, height]
+    # Adjust layout first to make room for colorbar
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # [left, bottom, right, top] - leave space on right
+    
+    # Add shared colorbar closer to the panels
+    cbar_ax = fig.add_axes([0.87, 0.15, 0.025, 0.7])  # [left, bottom, width, height] - moved closer
     cbar = fig.colorbar(im1, cax=cbar_ax, extend='max')
     cbar.set_label('Precipitation (mm)', fontsize=12, fontweight='bold')
     
-    # Overall title
-    
-    plt.tight_layout()
     
     return fig
 
@@ -369,7 +372,7 @@ def create_comparison_gif(file_info, output_file="precipitation_comparison.gif",
     
     # Use default base time if not provided
     if base_time is None:
-        base_time = datetime(2025, 7, 3, 18, 0, 0)  # Adjust as needed
+        base_time = datetime(2025, 7, 4, 0, 0, 0)  # Adjust as needed
         print(f"Using default base time: {base_time}")
     
     # Create NCAR colormap
