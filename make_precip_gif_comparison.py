@@ -369,7 +369,7 @@ def create_comparison_gif(file_info, output_file="precipitation_comparison.gif",
     
     # Use default base time if not provided
     if base_time is None:
-        base_time = datetime(2024, 9, 27, 12, 0, 0)  # Adjust as needed
+        base_time = datetime(2025, 7, 3, 18, 0, 0)  # Adjust as needed
         print(f"Using default base time: {base_time}")
     
     # Create NCAR colormap
