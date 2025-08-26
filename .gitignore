@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Data files
+*.npy
+*.tar
+
+# API keys and sensitive files
+.activate_key
+*_key
+*.key
+
+# Large output files
+output/
+input/
+static/
+
+# Temporary files
+temp/
+tmp/
